@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+  :root {
+    --bg: #f3f5f8; --card: #ffffff; --ink: #1b2733; --muted: #66727f; --line: #d9dfe6;
+    --accent: #0b6bcb; --ok: #18794e; --warn: #b54708; --err: #c4301c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 16px; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px; margin-bottom: 12px; }
+  h1 { font-size: 28px; margin: 0 0 2px; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; font-size: 14px; }
+  input[type=text], input[type=number], input[type=tel], input[type=password] {
+    width: 100%; font-size: 20px; padding: 12px; border: 1px solid var(--line);
+    border-radius: 10px; background: #fff; color: var(--ink); }
+  input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .old { display: flex; justify-content: space-between; align-items: baseline;
+         background: #eef3f9; border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
+  .old b { font-size: 22px; }
+  .note { border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 12px; }
+  .note.warn { background: #fff4e5; color: var(--warn); }
+  .note.err { background: #fdecea; color: var(--err); }
+  .note.ok { background: #e8f5ee; color: var(--ok); }
+  .preview { margin-top: 10px; font-size: 15px; color: var(--muted); min-height: 20px; }
+  .preview b { color: var(--ink); font-size: 18px; }
+  button { width: 100%; font-size: 18px; font-weight: 700; padding: 14px; border: 0;
+           border-radius: 12px; background: var(--accent); color: #fff; margin-top: 16px; }
+  button.sec { background: #e6ebf1; color: var(--ink); }
+  button:disabled { opacity: .5; }
+  .photo-btn { display: block; text-align: center; padding: 12px; border: 2px dashed var(--line);
+               border-radius: 10px; color: var(--accent); font-weight: 600; cursor: pointer; }
+  .photo-btn input { display: none; }
+  #thumb { max-width: 100%; border-radius: 10px; margin-top: 8px; display: none; }
+  .chk { display: flex; gap: 10px; align-items: center; margin-top: 16px; font-weight: 600; }
+  .chk input { width: 22px; height: 22px; }
+  .big { font-size: 34px; font-weight: 800; }
+  .res-row { display: flex; justify-content: space-between; padding: 8px 0;
+             border-bottom: 1px solid var(--line); }
+  .res-row:last-child { border-bottom: 0; }
+  .ok { color: var(--ok); }
+  .hidden { display: none; }
+  #scan-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;
+                  background: rgba(0, 0, 0, .92); color: #fff; padding: 16px;
+                  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+  #scan-overlay.hidden { display: none; }
+  .scan-box { position: relative; width: 100%; max-width: 480px; height: 55vh; background: #000; border-radius: 12px; overflow: hidden; }
+  .scan-box video { width: 100%; height: 100%; object-fit: cover; }
+  .scan-frame { position: absolute; top: 18%; left: 18%; right: 18%; bottom: 18%;
+                border: 3px solid rgba(255, 255, 255, .85); border-radius: 12px; }
+  #scan-overlay .photo-btn { background: #fff; width: 100%; max-width: 480px; }
+  #scan-overlay button { max-width: 480px; margin-top: 0; }
+  .apt { display: grid; grid-template-columns: 1fr 1.2fr; gap: 6px 10px; align-items: center;
+         padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .apt:last-child { border-bottom: 0; }
+  .apt.focus { background: #fffbe6; }
+  .apt .code { font-size: 20px; font-weight: 800; }
+  .apt .meta { font-size: 13px; color: var(--muted); }
+  .apt input { font-size: 20px; padding: 10px; }
+  .apt .full { grid-column: 1 / -1; }
+  .apt .pv { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+  .apt .pv:empty { display: none; }
+  .apt .pv.bad { color: var(--err); font-weight: 600; }
+  .apt .pv.warn { color: var(--warn); font-weight: 600; }
+  .apt .pv.good { color: var(--ok); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { background: #e6ebf1; border-radius: 999px; padding: 7px 8px 7px 14px; font-weight: 700; font-size: 16px; }
+  .chip b { margin-left: 8px; padding: 0 6px; color: var(--muted); cursor: pointer; font-size: 18px; }
+  .addrow { display: flex; gap: 8px; }
+  .addrow button { width: auto; margin-top: 0; padding: 0 18px; }
+  .fhead { font-size: 18px; font-weight: 800; margin: 14px 0 2px; padding: 8px 10px;
+           background: #eef3f9; border-radius: 8px; }
+  .fhead:first-child { margin-top: 0; }
+  .apt .photo { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+  .pbtn { display: inline-block; border: 1px dashed var(--line); border-radius: 8px; padding: 6px 12px;
+          color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; }
+  .pbtn input { display: none; }
+  .pth { height: 44px; width: 44px; object-fit: cover; border-radius: 6px; }
+  .pclr { color: var(--muted); font-size: 18px; padding: 0 6px; cursor: pointer; }
+  .thay-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 10px; background: #fafbfc; }
+  select { width: 100%; font-size: 18px; padding: 12px; border: 1px solid var(--line);
+           border-radius: 10px; background: #fff; color: var(--ink); }
+  table.sum { width: 100%; border-collapse: collapse; font-size: 15px; }
+  table.sum th { text-align: right; color: var(--muted); font-weight: 600; font-size: 13px; padding: 4px 2px; }
+  table.sum td { text-align: right; padding: 7px 2px; border-top: 1px solid var(--line); }
+  table.sum th:first-child, table.sum td:first-child { text-align: left; font-weight: 700; }
+  .spin { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="v-loading" class="card spin">Đang tải…</div>
+
+  <div id="v-login" class="card hidden">
+    <h1>Đăng nhập</h1>
+    <p class="sub">Nhập mã PIN do quản lý cấp. Điện thoại sẽ nhớ mã này cho lần sau.</p>
+    <div class="note err hidden" id="login-err"></div>
+    <label for="l-pin">Mã PIN</label>
+    <input type="password" id="l-pin" autocomplete="off">
+    <button id="btn-login" onclick="doLogin()">Vào</button>
+  </div>
+
+  <div id="v-error" class="card hidden">
+    <div class="note err" id="err-msg"></div>
+    <button class="sec" onclick="showSearch()">Nhập mã căn hộ khác</button>
+  </div>
+
+  <div id="v-search" class="card hidden">
+    <h1>Ghi chỉ số nước</h1>
+    <p class="sub">Quét mã QR của tầng, hoặc nhập mã tầng. Danh sách tất cả các căn của tầng sẽ hiện ra để nhập số.</p>
+    <button onclick="openScanner()">📷 Scan QR</button>
+    <div class="note warn hidden" id="qr-msg"></div>
+    <p class="sub" style="text-align:center;margin-top:14px">— hoặc nhập tay —</p>
+    <label for="s-ma">Mã tầng</label>
+    <input type="text" id="s-ma" placeholder="Ví dụ: PA.01" autocapitalize="characters" autocomplete="off">
+    <button id="btn-open" onclick="openInput()">Mở</button>
+    <button class="sec" onclick="logout()">Đổi người dùng</button>
+    <p class="sub" style="margin-top:10px">Người ghi: <span id="s-user"></span></p>
+  </div>
+
+  <div id="v-floor" class="hidden">
+    <div class="card">
+      <h1 id="fl-tang"></h1>
+      <p class="sub" id="fl-sub"></p>
+      <div id="fl-list" style="margin-top:8px"></div>
+      <p class="sub">Ảnh đồng hồ không bắt buộc: căn nào cần thì bấm 📷 chụp, không thì bỏ qua.</p>
+
+      <label class="chk"><input type="checkbox" id="fl-thay" onchange="toggleThayFloor()"> Có căn thay đồng hồ</label>
+      <div id="fl-thay-box" class="hidden">
+        <div class="note warn">Chọn căn hộ thay đồng hồ, nhập CS đồng hồ cũ lúc thay và CS đồng hồ mới lúc lắp (thường 1–2 m³). Ô số nước của căn đó ở danh sách trên là số đang hiện trên <b>đồng hồ mới</b>.</div>
+        <div id="fl-thay-items"></div>
+        <button class="sec" onclick="addThay()">+ Thêm căn thay đồng hồ</button>
+      </div>
+
+      <button id="btn-fsend" onclick="submitFloorForm()">Gửi</button>
+      <button class="sec" onclick="showSearch()">Chọn tầng khác</button>
+      <p class="sub" style="margin-top:10px">Người ghi: <span id="fl-user"></span></p>
+    </div>
+  </div>
+
+  <div id="v-fresult" class="card hidden">
+    <div class="big" id="fr-title"></div>
+    <p class="sub" id="fr-sub"></p>
+    <div id="fr-saved" style="margin-top:10px"></div>
+    <div id="fr-issues"></div>
+    <p class="note hidden" id="fr-photo"></p>
+    <button id="fr-back" onclick="reloadFloor()">Quay lại tầng này</button>
+    <button class="sec" onclick="showSearch()">Chọn tầng khác</button>
+  </div>
+
+  <div id="v-form" class="hidden">
+    <div class="card">
+      <h1 id="f-ma"></h1>
+      <p class="sub" id="f-sub"></p>
+
+      <div id="f-daghi" class="note warn hidden"></div>
+
+      <div id="f-cu-box" class="old">
+        <span>Chỉ số cũ <span class="sub" id="f-cu-nguon"></span></span>
+        <b id="f-cu"></b>
+      </div>
+      <div id="f-cutay-box" class="hidden">
+        <div class="note warn">Căn hộ chưa có chỉ số đầu. Hãy nhập chỉ số cũ.</div>
+        <label for="f-cutay">Chỉ số cũ</label>
+        <input type="number" id="f-cutay" inputmode="numeric">
+      </div>
+
+      <label for="f-moi">Chỉ số hiện tại (số nước mới)</label>
+      <input type="number" id="f-moi" inputmode="numeric" placeholder="Nhập số trên đồng hồ" oninput="updatePreview()">
+      <div class="preview" id="f-preview"></div>
+
+      <label>Ảnh đồng hồ <span class="sub" id="f-anh-bb"></span></label>
+      <label class="photo-btn">
+        📷 Chụp / chọn ảnh
+        <input type="file" id="f-anh" accept="image/*" capture="environment" onchange="onPhoto(this)">
+      </label>
+      <img id="thumb" alt="">
+
+      <label class="chk"><input type="checkbox" id="f-thay" onchange="toggleThay()"> Vừa thay đồng hồ</label>
+      <div id="f-thay-box" class="hidden">
+        <div class="note warn">Nhập chỉ số đồng hồ cũ lúc thay và chỉ số đồng hồ mới lúc lắp (thường 1–2 m³). "Chỉ số hiện tại" ở trên là số đang hiện trên <b>đồng hồ mới</b>. App tự quy đổi chỉ số cũ để tính tiêu thụ cả tháng.</div>
+        <div class="row2">
+          <div>
+            <label for="f-cuoi">CS đồng hồ CŨ lúc thay</label>
+            <input type="number" id="f-cuoi" inputmode="numeric" oninput="updatePreview()">
+          </div>
+          <div>
+            <label for="f-dau">CS đồng hồ MỚI lúc lắp</label>
+            <input type="number" id="f-dau" inputmode="numeric" oninput="updatePreview()">
+          </div>
+        </div>
+      </div>
+
+      <label for="f-ghichu">Ghi chú (không bắt buộc)</label>
+      <input type="text" id="f-ghichu" autocomplete="off">
+
+      <button id="btn-send" onclick="submitForm({})">Gửi</button>
+      <button class="sec" onclick="showSearch()">Nhập mã căn hộ khác</button>
+      <p class="sub" style="margin-top:10px">Người ghi: <span id="f-user"></span></p>
+    </div>
+  </div>
+
+  <div id="v-result" class="card hidden">
+    <div class="ok big" id="r-title">Đã lưu</div>
+    <p class="sub" id="r-sub"></p>
+    <div style="margin-top:10px">
+      <div class="res-row"><span id="r-cu-lbl">Chỉ số cũ</span><b id="r-cu"></b></div>
+      <div class="res-row"><span>Chỉ số mới</span><b id="r-moi"></b></div>
+      <div class="res-row"><span>Tiêu thụ</span><b id="r-tt"></b></div>
+      <div class="res-row"><span>Thành tiền</span><b id="r-tien"></b></div>
+    </div>
+    <p class="note hidden" id="r-photo" style="margin-top:12px"></p>
+    <button onclick="showSearch()">Ghi căn hộ khác</button>
+  </div>
+
+</div>
+
+<div id="scan-overlay" class="hidden">
+  <div class="scan-box">
+    <video id="scan-video" playsinline muted></video>
+    <div class="scan-frame"></div>
+  </div>
+  <p id="scan-msg" style="margin:0;text-align:center">Hướng camera vào mã QR trên đồng hồ</p>
+  <label class="photo-btn hidden" id="scan-photo-btn">
+    📷 Chụp ảnh mã QR thay thế
+    <input type="file" id="s-qr" accept="image/*" capture="environment" onchange="onQrPhoto(this)">
+  </label>
+  <button class="sec" onclick="closeScanner()">Đóng</button>
+</div>
+
+<script>
+  // ===== CAU HINH: dan link web app Apps Script (ket thuc bang /exec) vao day =====
+  var API_URL = 'https://script.google.com/macros/s/AKfycbxSmzUgf4PA1S6fx0T3TFihvz3W73_vqOM8eVVr4frCTRORv3VofhtlNWBJqnbaTwskkw/exec';
+
+  // Gia lap google.script.run de giu nguyen code giao dien: goi Apps Script qua fetch
+  var google = {script: {run: (function () {
+    function mk(ok, fail) {
+      return new Proxy({}, {get: function (_, name) {
+        if (name === 'withSuccessHandler') return function (f) { return mk(f, fail); };
+        if (name === 'withFailureHandler') return function (f) { return mk(ok, f); };
+        return function () {
+          var args = Array.prototype.slice.call(arguments);
+          fetch(API_URL, {method: 'POST',
+                          headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                          body: JSON.stringify({fn: String(name), args: args})})
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (j.error) throw new Error(j.error);
+              if (ok) ok(j.result);
+            })
+            .catch(function (e) { if (fail) fail(e); });
+        };
+      }});
+    }
+    return mk(null, null);
+  })()}};
+</script>
+<script>
+  var QP = new URLSearchParams(location.search);
+  var MA0 = (QP.get('tang') || QP.get('ma') || '').replace(/[^A-Za-z0-9_.\-]/g, '');
+  var info = null;
+  var photoData = '';
+  var PIN = '';
+  var USER = '';
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) {
+    ['v-loading', 'v-login', 'v-error', 'v-search', 'v-floor', 'v-fresult', 'v-form', 'v-result'].forEach(function (v) {
+      $(v).classList.toggle('hidden', v !== id);
+    });
+    window.scrollTo(0, 0);
+  }
+  function fmt(n) { return Number(n).toLocaleString('vi-VN'); }
+
+  // --- Ghi nho PIN tren dien thoai (neu trinh duyet cho phep) ---
+  function savePin(v) { try { localStorage.setItem('dp_pin', v); } catch (e) {} }
+  function loadPin() { try { return localStorage.getItem('dp_pin') || ''; } catch (e) { return ''; } }
+  function clearPin() { try { localStorage.removeItem('dp_pin'); localStorage.removeItem('dp_user'); } catch (e) {} }
+  function saveUser(v) { try { localStorage.setItem('dp_user', v); } catch (e) {} }
+  function loadUser() { try { return localStorage.getItem('dp_user') || ''; } catch (e) { return ''; } }
+
+  // "Danh thuc" Apps Script: goi ham rong ngay khi mo trang, khi mo camera, va moi 4 phut
+  function warm() { try { google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).ping(); } catch (e) {} }
+  setInterval(function () { if (!document.hidden) warm(); }, 240000);
+
+  function init() {
+    warm();
+    PIN = loadPin();
+    if (!PIN) { showLogin(''); return; }
+    // Vao ngay, khong cho kiem tra PIN: PIN duoc kiem tra o lan mo can ho dau tien
+    // (neu PIN khong con hieu luc se tu quay ve man hinh dang nhap).
+    USER = loadUser();
+    if (MA0) { var m0 = MA0; MA0 = ''; loadFloors([m0]); return; }
+    showSearch();
+  }
+
+  function afterLogin() {
+    if (MA0) { var m = MA0; MA0 = ''; loadFloors([m]); } else showSearch();
+  }
+
+  function showLogin(msg) {
+    var e = $('login-err');
+    e.textContent = msg || '';
+    e.classList.toggle('hidden', !msg);
+    $('l-pin').value = '';
+    show('v-login');
+    setTimeout(function () { $('l-pin').focus(); }, 100);
+  }
+
+  function doLogin() {
+    var v = $('l-pin').value.trim();
+    if (!v) return;
+    var b = $('btn-login');
+    b.disabled = true;
+    b.textContent = 'Đang kiểm tra…';
+    function done() { b.disabled = false; b.textContent = 'Vào'; }
+    google.script.run
+      .withSuccessHandler(function (r) {
+        done();
+        if (r.ok) { PIN = v; USER = r.name; savePin(v); saveUser(r.name); afterLogin(); }
+        else showLogin(r.msg);
+      })
+      .withFailureHandler(function (e) {
+        done();
+        showLogin((e && e.message) ? e.message : String(e));
+      })
+      .login(v);
+  }
+
+  function logout() {
+    clearPin();
+    PIN = '';
+    USER = '';
+    showLogin('');
+  }
+  $('l-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+  function showSearch() {
+    $('s-ma').value = '';
+    showQrMsg('');
+    $('s-user').textContent = USER;
+    show('v-search');
+    setTimeout(function () { $('s-ma').focus(); }, 100);
+  }
+  // --- Quet ma QR: chup anh ma QR roi doc bang thu vien jsQR ---
+  function showQrMsg(msg, ok) {
+    var e = $('qr-msg');
+    e.textContent = msg || '';
+    e.className = 'note ' + (ok ? 'ok' : 'warn') + (msg ? '' : ' hidden');
+  }
+
+  // Lay ma can ho tu noi dung QR (link co ?ma=... hoac chi la ma tran)
+  function maFromQr(text) {
+    text = String(text || '').trim();
+    var m = /[?&](?:ma|tang)=([^&#\s]+)/.exec(text);
+    if (m) { try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; } }
+    if (/^[A-Za-z0-9_.\-]{3,40}$/.test(text)) return text;
+    return '';
+  }
+
+  function imageDataFromFile(file, maxSize) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var s = Math.min(1, maxSize / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * s));
+          c.height = Math.max(1, Math.round(img.height * s));
+          var ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          resolve(ctx.getImageData(0, 0, c.width, c.height));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function decodeQrFile(file, sizes, i) {
+    if (i >= sizes.length) return Promise.resolve('');
+    return imageDataFromFile(file, sizes[i]).then(function (id) {
+      var r = jsQR(id.data, id.width, id.height, {inversionAttempts: 'attemptBoth'});
+      if (r && r.data) return r.data;
+      return decodeQrFile(file, sizes, i + 1);
+    });
+  }
+
+  // Dien ma quet duoc vao o "Ma can ho" (nhan vien bam "Mo" de tiep tuc)
+  function fillMa(ma) {
+    $('s-ma').value = ma;
+    showQrMsg('Đã quét: ' + ma, true);
+    loadFloors([ma]);   // quet xong mo ngay danh sach cac can cua tang
+  }
+
+  // --- Camera truc tiep: bam "Scan QR" -> mo camera -> tu doc QR ---
+  var scanStream = null, scanTimer = null, scanBusy = false, scanOpen = false, scanCanvas = null;
+
+  function setScanMsg(msg) { $('scan-msg').textContent = msg; }
+  // Hien thong bao o khung quet neu dang mo, nguoc lai hien ngay duoi nut Scan QR
+  function qrNote(msg) { if (scanOpen) setScanMsg(msg); else showQrMsg(msg); }
+
+  function stopScanStream() {
+    if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+    if (scanStream) {
+      try { scanStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      scanStream = null;
+    }
+    try { $('scan-video').srcObject = null; } catch (e) {}
+  }
+
+  function closeScanner() {
+    scanOpen = false;
+    stopScanStream();
+    $('scan-overlay').classList.add('hidden');
+  }
+
+  // Camera truc tiep khong dung duoc -> cho phep chup anh ma QR thay the
+  function scanFallback(msg) {
+    stopScanStream();
+    setScanMsg(msg);
+    $('scan-photo-btn').classList.remove('hidden');
+  }
+
+  function openScanner() {
+    warm();
+    showQrMsg('');
+    scanOpen = true;
+    $('scan-overlay').classList.remove('hidden');
+    $('scan-photo-btn').classList.add('hidden');
+    setScanMsg('Đang mở camera…');
+    if (typeof jsQR !== 'function') {
+      stopScanStream();
+      setScanMsg('Không tải được bộ đọc QR (cần có mạng). Hãy dùng camera điện thoại quét mã hoặc nhập mã căn hộ.');
+      return;
+    }
+    // Neu khung trang chan camera (Google chan trong web app Apps Script) -> mo thang camera de chup anh
+    try {
+      var pp = document.permissionsPolicy || document.featurePolicy;
+      if (pp && typeof pp.allowsFeature === 'function' && !pp.allowsFeature('camera')) {
+        scanOpen = false;
+        $('scan-overlay').classList.add('hidden');
+        $('s-qr').click();
+        return;
+      }
+    } catch (e) {}
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      scanFallback('Trình duyệt không cho mở camera trực tiếp. Hãy chụp ảnh mã QR.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}, audio: false})
+      .then(function (stream) {
+        if (!scanOpen) { stream.getTracks().forEach(function (t) { t.stop(); }); return null; }
+        scanStream = stream;
+        // Bat lay net tu dong lien tuc neu camera ho tro
+        try {
+          var tr = stream.getVideoTracks()[0];
+          var caps = tr.getCapabilities ? tr.getCapabilities() : {};
+          if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0) {
+            tr.applyConstraints({advanced: [{focusMode: 'continuous'}]}).catch(function () {});
+          }
+        } catch (e) {}
+        var v = $('scan-video');
+        v.srcObject = stream;
+        v.setAttribute('playsinline', 'true');
+        return v.play();
+      })
+      .then(function () {
+        if (!scanOpen || !scanStream) return;
+        setScanMsg('Hướng camera vào mã QR trên đồng hồ');
+        scanTimer = setInterval(scanTick, 150);
+      })
+      .catch(function (e) {
+        if (!scanOpen) return;
+        var n = (e && e.name) ? e.name : 'lỗi';
+        var hint = {
+          NotAllowedError: 'Camera đang bị chặn cho trang này. Bấm biểu tượng khóa/cài đặt cạnh địa chỉ trang, chọn Camera = Cho phép, rồi tải lại trang. Nếu mở link trong Zalo/Messenger, hãy chọn "Mở bằng Safari/Chrome".',
+          NotReadableError: 'Camera đang được app hoặc tab khác sử dụng. Đóng các app/tab đó rồi thử lại.',
+          NotFoundError: 'Không tìm thấy camera trên thiết bị này.',
+          OverconstrainedError: 'Camera sau không dùng được.',
+          SecurityError: 'Trình duyệt không cho dùng camera ở trang này.'
+        }[n] || 'Không mở được camera trực tiếp.';
+        scanFallback(hint + ' (' + n + ') Có thể chụp ảnh mã QR thay thế.');
+      });
+  }
+
+  var bDetector = null;
+  function onScanned(data) {
+    var ma = maFromQr(data);
+    if (ma) { closeScanner(); fillMa(ma); }
+    else setScanMsg('Mã QR này không phải mã đồng hồ của hệ thống. Thử mã khác.');
+  }
+
+  function scanTick() {
+    var v = $('scan-video');
+    if (scanBusy || !v.videoWidth) return;
+    scanBusy = true;
+    // Uu tien bo doc QR co san cua trinh duyet (Chrome Android...): nhanh va chinh xac hon
+    if (bDetector === null) {
+      try { bDetector = window.BarcodeDetector ? new BarcodeDetector({formats: ['qr_code']}) : false; }
+      catch (e) { bDetector = false; }
+    }
+    if (bDetector) {
+      bDetector.detect(v).then(function (list) {
+        scanBusy = false;
+        if (scanOpen && list && list.length && list[0].rawValue) onScanned(list[0].rawValue);
+      }).catch(function () { bDetector = false; scanBusy = false; });
+      return;
+    }
+    try {
+      var s = Math.min(1, 800 / Math.max(v.videoWidth, v.videoHeight));
+      if (!scanCanvas) scanCanvas = document.createElement('canvas');
+      scanCanvas.width = Math.round(v.videoWidth * s);
+      scanCanvas.height = Math.round(v.videoHeight * s);
+      var ctx = scanCanvas.getContext('2d');
+      ctx.drawImage(v, 0, 0, scanCanvas.width, scanCanvas.height);
+      var id = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+      // QR in muc den tren nen sang: khong thu dao mau -> nhanh gap doi
+      var r = jsQR(id.data, id.width, id.height, {inversionAttempts: 'dontInvert'});
+      if (r && r.data) onScanned(r.data);
+    } catch (e) {}
+    scanBusy = false;
+  }
+
+  // --- Phuong an du phong: chup anh ma QR roi doc ---
+  function onQrPhoto(input) {
+    var f = input.files && input.files[0];
+    input.value = '';
+    if (!f) return;
+    if (typeof jsQR !== 'function') {
+      qrNote('Không tải được bộ đọc QR (cần có mạng). Hãy nhập mã căn hộ.');
+      return;
+    }
+    qrNote('Đang đọc mã QR…');
+    decodeQrFile(f, [1600, 1000, 600], 0).then(function (text) {
+      var ma = maFromQr(text);
+      if (!ma) {
+        qrNote(text ? 'Mã QR này không phải mã đồng hồ của hệ thống.' :
+                      'Không đọc được mã QR. Chụp lại gần hơn, đủ sáng, mã nằm giữa ảnh; hoặc nhập mã căn hộ.');
+        return;
+      }
+      closeScanner();
+      fillMa(ma);
+    }).catch(function () {
+      qrNote('Không đọc được ảnh. Hãy chụp lại hoặc nhập mã căn hộ.');
+    });
+  }
+
+
+  // ================= GHI THEO TANG (nhieu tang) =================
+  var FL = null;          // {thang, nguong, batBuocAnh, floors:[...], flat:[...]}
+  var lastCodes = [];     // cac ma tang da mo, de "Quay lai"
+  var PHOTOS = {};        // maCanHo -> dataURL (anh chup, chua gui)
+
+  function natKey(s) {
+    return String(s || '').toUpperCase().replace(/\d+/g, function (d) { return ('00000000' + d).slice(-8); });
+  }
+  function normKey(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+
+  // --- man hinh chon tang: quet/nhap ma tang -> mo ngay danh sach cac can cua tang ---
+  function openInput() {
+    var v = $('s-ma').value.trim().replace(/[^A-Za-z0-9_.\-]/g, '').toUpperCase();
+    if (!v) { alert('Hãy quét hoặc nhập mã tầng.'); return; }
+    loadFloors([v]);
+  }
+  $('s-ma').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); openInput(); } });
+
+  function loadFloors(codes) {
+    lastCodes = codes;
+    show('v-loading');
+    google.script.run
+      .withSuccessHandler(onFloors)
+      .withFailureHandler(onFail)
+      .getFloorsInfo(codes, PIN);
+  }
+  function reloadFloor() { if (lastCodes.length) loadFloors(lastCodes); else showSearch(); }
+
+  function onFloors(r) {
+    if (!r.ok) {
+      if (r.auth) { clearPin(); PIN = ''; showLogin(r.msg); return; }
+      $('err-msg').textContent = r.msg;
+      show('v-error');
+      return;
+    }
+    if (r.notFound && r.notFound.length) alert('Không tìm thấy: ' + r.notFound.join(', ') + '. Các tầng còn lại vẫn được mở.');
+    FL = r;
+    FL.flat = [];
+    r.floors.forEach(function (f) { f.list.forEach(function (a) { a.tang = f.tang; FL.flat.push(a); }); });
+    PHOTOS = {};
+    if (r.nhanVien) { USER = r.nhanVien; saveUser(USER); }
+    $('fl-tang').textContent = r.floors.map(function (f) { return f.tang; }).join(' · ');
+    $('fl-sub').textContent = 'Tháng ' + r.thang + ' · ' + FL.flat.length + ' căn hộ';
+    $('fl-user').textContent = USER;
+    $('fl-thay').checked = false;
+    $('fl-thay-box').classList.add('hidden');
+    $('fl-thay-items').innerHTML = '';
+    var box = $('fl-list');
+    box.innerHTML = '';
+    var idx = 0, focusIdx = 0;
+    r.floors.forEach(function (f) {
+      if (r.floors.length > 1) {
+        var hd = document.createElement('div');
+        hd.className = 'fhead';
+        hd.textContent = f.tang + ' · ' + f.list.length + ' căn';
+        box.appendChild(hd);
+      }
+      f.list.forEach(function (a) {
+        if (f.focus && f.focus === a.maCanHo) focusIdx = idx;
+        box.appendChild(buildRow(a, idx));
+        idx++;
+      });
+    });
+    show('v-floor');
+    setTimeout(function () { var e = $('ap-' + focusIdx); if (e) e.focus(); }, 100);
+  }
+
+  function buildRow(a, i) {
+    var row = document.createElement('div');
+    row.className = 'apt';
+    row.id = 'row-' + i;
+    var left = document.createElement('div');
+    var code = document.createElement('div');
+    code.className = 'code';
+    code.textContent = a.maCanHo;
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    var m = a.chiSoCu === null ? 'Chưa có CS cũ' : 'CS cũ: ' + fmt(a.chiSoCu);
+    if (a.daGhi) m += ' · đã ghi: ' + fmt(a.daGhi.chiSoMoi) + (a.daGhi.nhanVien ? ' (' + a.daGhi.nhanVien + ')' : '');
+    meta.textContent = m;
+    left.appendChild(code);
+    left.appendChild(meta);
+    var inp = document.createElement('input');
+    inp.type = 'number';
+    inp.id = 'ap-' + i;
+    inp.className = 'apt-in';
+    inp.setAttribute('inputmode', 'numeric');
+    inp.setAttribute('enterkeyhint', 'next');
+    inp.placeholder = a.daGhi ? 'ghi đè' : 'CS mới';
+    inp.addEventListener('input', function () { updateRow(i); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); focusNext(i); }
+    });
+    row.appendChild(left);
+    row.appendChild(inp);
+    if (a.chiSoCu === null) {
+      var cu = document.createElement('input');
+      cu.type = 'number';
+      cu.id = 'ac-' + i;
+      cu.className = 'full';
+      cu.setAttribute('inputmode', 'numeric');
+      cu.placeholder = 'Chưa có CS cũ, nhập CS cũ';
+      cu.addEventListener('input', function () { updateRow(i); });
+      row.appendChild(cu);
+    }
+    // anh dong ho (khong bat buoc)
+    var ph = document.createElement('div');
+    ph.className = 'photo';
+    var lab = document.createElement('label');
+    lab.className = 'pbtn';
+    lab.appendChild(document.createTextNode('📷 Ảnh'));
+    var fi = document.createElement('input');
+    fi.type = 'file';
+    fi.id = 'pf-' + i;
+    fi.accept = 'image/*';
+    fi.setAttribute('capture', 'environment');
+    lab.appendChild(fi);
+    var th = document.createElement('img');
+    th.id = 'pt-' + i;
+    th.className = 'pth hidden';
+    th.alt = '';
+    var clr = document.createElement('span');
+    clr.id = 'pc-' + i;
+    clr.className = 'pclr hidden';
+    clr.textContent = '✕';
+    ph.appendChild(lab);
+    ph.appendChild(th);
+    ph.appendChild(clr);
+    row.appendChild(ph);
+    fi.addEventListener('change', function () { onRowPhoto(i, fi); });
+    clr.addEventListener('click', function () { setRowPhoto(i, ''); });
+    var pv = document.createElement('div');
+    pv.className = 'pv';
+    pv.id = 'pv-' + i;
+    row.appendChild(pv);
+    return row;
+  }
+
+  function setRowPhoto(i, data) {
+    var ma = FL.flat[i].maCanHo;
+    if (data) PHOTOS[ma] = data; else delete PHOTOS[ma];
+    var th = $('pt-' + i);
+    th.src = data || '';
+    th.classList.toggle('hidden', !data);
+    $('pc-' + i).classList.toggle('hidden', !data);
+    if (!data) $('pf-' + i).value = '';
+  }
+  function onRowPhoto(i, input) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    compressImage(f, 1024, 0.65).then(function (data) { setRowPhoto(i, data); })
+      .catch(function () { alert('Không đọc được ảnh. Hãy chụp lại.'); });
+  }
+
+  function focusNext(i) {
+    var n = $('ap-' + (i + 1));
+    if (n) n.focus(); else { try { $('ap-' + i).blur(); } catch (e) {} }
+  }
+
+  // --- khoi "thay dong ho" ---
+  function thayBlocks() {
+    if (!$('fl-thay').checked) return [];
+    var out = [];
+    Array.prototype.forEach.call($('fl-thay-items').children, function (b) {
+      out.push({
+        el: b,
+        ma: b.querySelector('.t-ma').value,
+        cuoi: b.querySelector('.t-cuoi').value.trim(),
+        dau: b.querySelector('.t-dau').value.trim(),
+        note: b.querySelector('.t-note').value.trim()
+      });
+    });
+    return out;
+  }
+  function thayFor(ma) {
+    var bl = thayBlocks();
+    for (var k = 0; k < bl.length; k++) if (bl[k].ma === ma) return bl[k];
+    return null;
+  }
+  function toggleThayFloor() {
+    var on = $('fl-thay').checked;
+    $('fl-thay-box').classList.toggle('hidden', !on);
+    if (on && !$('fl-thay-items').children.length) addThay();
+    refreshRows();
+  }
+  function addThay() {
+    var b = document.createElement('div');
+    b.className = 'thay-item';
+    var opts = '<option value="">— chọn căn hộ —</option>';
+    FL.flat.forEach(function (a) {
+      var o = document.createElement('option');
+      o.value = a.maCanHo; o.textContent = a.maCanHo;
+      opts += o.outerHTML;
+    });
+    b.innerHTML =
+      '<label>Mã căn hộ thay đồng hồ</label><select class="t-ma">' + opts + '</select>' +
+      '<div class="row2"><div><label>CS đồng hồ CŨ lúc thay</label>' +
+      '<input type="number" class="t-cuoi" inputmode="numeric"></div>' +
+      '<div><label>CS đồng hồ MỚI lúc lắp</label>' +
+      '<input type="number" class="t-dau" inputmode="numeric"></div></div>' +
+      '<label>Ghi chú (không bắt buộc)</label><input type="text" class="t-note" autocomplete="off">' +
+      '<button class="sec t-del" style="margin-top:10px">Xóa căn này</button>';
+    $('fl-thay-items').appendChild(b);
+    ['.t-ma', '.t-cuoi', '.t-dau'].forEach(function (q) {
+      b.querySelector(q).addEventListener('input', refreshRows);
+      b.querySelector(q).addEventListener('change', refreshRows);
+    });
+    b.querySelector('.t-del').addEventListener('click', function () { b.remove(); refreshRows(); });
+  }
+
+  function refreshRows() { if (FL) FL.flat.forEach(function (a, i) { updateRow(i); }); }
+
+  // Xem truoc tieu thu ngay tren tung dong
+  function updateRow(i) {
+    var a = FL.flat[i];
+    var v = $('ap-' + i).value.trim();
+    var pv = $('pv-' + i);
+    var t = thayFor(a.maCanHo);
+    pv.className = 'pv';
+    if (v === '') { pv.textContent = t ? '🔧 thay đồng hồ: nhập CS hiện tại của đồng hồ mới' : ''; return; }
+    var cu = a.chiSoCu;
+    if (cu === null) { var h = $('ac-' + i).value.trim(); cu = h === '' ? null : Number(h); }
+    if (cu === null) { pv.textContent = 'Nhập CS cũ'; pv.className = 'pv warn'; return; }
+    var moi = Number(v), tt;
+    if (t && t.cuoi !== '' && t.dau !== '') {
+      tt = (Number(t.cuoi) - cu) + (moi - Number(t.dau));
+      pv.textContent = '🔧 thay đồng hồ · CS cũ quy đổi ' + fmt(Number(t.dau) - (Number(t.cuoi) - cu)) + ' → tiêu thụ ' + fmt(tt) + ' m³';
+    } else if (t) {
+      pv.textContent = '🔧 thay đồng hồ: nhập CS cũ lúc thay và CS mới lúc lắp'; pv.className = 'pv warn'; return;
+    } else {
+      tt = moi - cu;
+      pv.textContent = '= ' + fmt(tt) + ' m³';
+    }
+    if (tt < 0) { pv.textContent = 'Nhỏ hơn CS cũ. Nếu vừa thay đồng hồ hãy tick bên dưới.'; pv.className = 'pv bad'; }
+    else if (FL.nguong && tt > FL.nguong) pv.className = 'pv warn';
+    else pv.className = 'pv good';
+  }
+
+  // --- gom du lieu & gui ---
+  function collectFloor() {
+    var items = [], overwrite = [], byMa = {}, bad = false;
+    FL.flat.forEach(function (a, i) {
+      var v = $('ap-' + i).value.trim();
+      if (v === '') return;
+      var it = {ma: a.maCanHo, chiSoMoi: v};
+      if (a.chiSoCu === null) {
+        var h = $('ac-' + i).value.trim();
+        if (h === '') { alert('Căn ' + a.maCanHo + ' chưa có CS cũ. Hãy nhập CS cũ.'); bad = true; return; }
+        it.chiSoCuTay = h;
+      }
+      if (FL.batBuocAnh && !PHOTOS[a.maCanHo]) { alert('Căn ' + a.maCanHo + ': cần chụp ảnh đồng hồ.'); bad = true; return; }
+      if (a.daGhi) overwrite.push(a.maCanHo);
+      items.push(it);
+      byMa[a.maCanHo] = it;
+    });
+    if (bad) return null;
+    var used = {};
+    var bl = thayBlocks();
+    for (var k = 0; k < bl.length; k++) {
+      var b = bl[k];
+      if (!b.ma) { alert('Chọn căn hộ cho phần thay đồng hồ (hoặc bấm "Xóa căn này").'); return null; }
+      if (used[b.ma]) { alert('Căn ' + b.ma + ' bị chọn 2 lần trong phần thay đồng hồ.'); return null; }
+      used[b.ma] = 1;
+      var it = byMa[b.ma];
+      if (!it) { alert('Căn ' + b.ma + ': hãy nhập CS hiện tại (đồng hồ mới) ở ô trong danh sách.'); return null; }
+      if (b.cuoi === '' || b.dau === '') { alert('Căn ' + b.ma + ': nhập CS đồng hồ cũ lúc thay và CS đồng hồ mới lúc lắp.'); return null; }
+      it.thayDongHo = true; it.csCuoiCu = b.cuoi; it.csDauMoi = b.dau; it.ghiChu = b.note;
+    }
+    // Chan som: CS moi nho hon CS cu (khong thay dong ho)
+    for (var j = 0; j < items.length; j++) {
+      var x = items[j];
+      if (x.thayDongHo) continue;
+      var a2 = FL.flat.filter(function (q) { return q.maCanHo === x.ma; })[0];
+      var cu2 = a2.chiSoCu !== null ? a2.chiSoCu : Number(x.chiSoCuTay);
+      if (Number(x.chiSoMoi) < cu2) {
+        alert('Căn ' + x.ma + ': CS mới (' + x.chiSoMoi + ') nhỏ hơn CS cũ (' + cu2 + '). Nếu vừa thay đồng hồ hãy tick "Có căn thay đồng hồ".');
+        return null;
+      }
+    }
+    if (!items.length) { alert('Chưa nhập số nước căn nào.'); return null; }
+    if (overwrite.length && !confirm('Các căn đã ghi tháng này: ' + overwrite.join(', ') + '.\nBấm OK để GHI ĐÈ, Hủy để quay lại.')) return null;
+    return {items: items, overwrite: overwrite};
+  }
+
+  function floorBtn(busy) {
+    var b = $('btn-fsend');
+    b.disabled = !!busy;
+    b.textContent = busy ? 'Đang gửi…' : 'Gửi';
+  }
+
+  function submitFloorForm() {
+    if (!FL) return;
+    var c = collectFloor();
+    if (!c) return;
+    floorBtn(true);
+    sendFloor(c.items, {overwrite: c.overwrite, xacNhan: []}, {saved: [], issues: []});
+  }
+
+  function sendFloor(items, flags, acc) {
+    google.script.run
+      .withSuccessHandler(function (res) { onFloorSent(res, items, flags, acc); })
+      .withFailureHandler(function (e) {
+        floorBtn(false);
+        alert('Lỗi: ' + ((e && e.message) ? e.message : e) +
+              (acc.saved.length ? '\nĐã lưu ' + acc.saved.length + ' căn trước đó.' : ''));
+      })
+      .submitFloor({pin: PIN, items: items, overwrite: flags.overwrite, xacNhan: flags.xacNhan});
+  }
+
+  function uniq(a) { var s = {}, o = []; a.forEach(function (x) { if (!s[x]) { s[x] = 1; o.push(x); } }); return o; }
+
+  function onFloorSent(res, items, flags, acc) {
+    if (res.status === 'AUTH') { floorBtn(false); clearPin(); PIN = ''; showLogin(res.msg); return; }
+    if (res.status !== 'DONE') {
+      floorBtn(false);
+      alert(res.msg || 'Có lỗi xảy ra.');
+      if (acc.saved.length) showFloorResult(acc, '');
+      return;
+    }
+    var pend = [];
+    res.results.forEach(function (r) {
+      if (r.status === 'OK') acc.saved.push(r);
+      else if (r.status === 'CONFIRM' || r.status === 'DUPLICATE') pend.push(r);
+      else acc.issues.push(r);
+    });
+    if (pend.length) {
+      var txt = pend.map(function (r) { return r.ma + ': ' + r.msg; }).join('\n');
+      if (confirm('Cần xác nhận:\n' + txt + '\n\nBấm OK để vẫn lưu các căn này, Hủy để bỏ qua.')) {
+        var codes = pend.map(function (r) { return r.ma; });
+        var sub = items.filter(function (it) { return codes.indexOf(it.ma) >= 0; });
+        sendFloor(sub, {
+          overwrite: uniq(flags.overwrite.concat(pend.filter(function (r) { return r.status === 'DUPLICATE'; }).map(function (r) { return r.ma; }))),
+          xacNhan: uniq(flags.xacNhan.concat(pend.filter(function (r) { return r.status === 'CONFIRM'; }).map(function (r) { return r.ma; })))
+        }, acc);
+        return;
+      }
+      pend.forEach(function (r) { acc.issues.push({ma: r.ma, status: 'SKIP', msg: 'Chưa lưu: ' + r.msg}); });
+    }
+    floorBtn(false);
+    if (!acc.saved.length) {
+      alert('Chưa lưu được căn nào:\n' + acc.issues.map(function (r) { return r.ma + ': ' + r.msg; }).join('\n'));
+      return;   // giu nguyen form de sua
+    }
+    showFloorResult(acc, res.thang);
+  }
+
+  function showFloorResult(acc, thang) {
+    var n = acc.saved.length, tt = 0, tien = 0;
+    acc.saved.forEach(function (r) { tt += Number(r.tieuThu) || 0; tien += Number(r.thanhTien) || 0; });
+    var t = $('fr-title');
+    t.textContent = n ? 'Đã lưu ' + n + ' căn' : 'Chưa lưu căn nào';
+    t.className = 'big ' + (n ? 'ok' : '');
+    $('fr-sub').textContent = (FL ? FL.floors.map(function (f) { return f.tang; }).join(' · ') : '') +
+      (thang ? ' · Tháng ' + thang : '') + ' · Tổng ' + fmt(tt) + ' m³ · ' + fmt(Math.round(tien)) + ' đ';
+    var rows = acc.saved.map(function (r) {
+      return '<tr><td>' + esc(r.ma) + (r.thayDongHo ? ' 🔧' : '') + '</td><td>' + fmt(r.chiSoCu) + '</td><td>' + fmt(r.chiSoMoi) +
+             '</td><td>' + fmt(r.tieuThu) + '</td><td>' + fmt(Math.round(r.thanhTien)) + '</td></tr>';
+    }).join('');
+    $('fr-saved').innerHTML = n ? '<table class="sum"><tr><th>Căn</th><th>CS cũ</th><th>CS mới</th><th>m³</th><th>Thành tiền</th></tr>' + rows + '</table>' : '';
+    $('fr-issues').innerHTML = acc.issues.length
+      ? '<div class="note err"><b>Chưa lưu (hãy nhập lại):</b><br>' +
+        acc.issues.map(function (r) { return esc(r.ma) + ': ' + esc(r.msg); }).join('<br>') + '</div>'
+      : '';
+    show('v-fresult');
+    // tai anh len ngam (chi cac can da luu va co chup anh)
+    var q = [];
+    acc.saved.forEach(function (r) { if (PHOTOS[r.ma] && r.id) q.push({ma: r.ma, id: r.id, data: PHOTOS[r.ma]}); });
+    uploadQueue(q);
+  }
+
+  // Tai anh lan luot, thu lai neu loi; hien tien do tren man hinh ket qua
+  function uploadQueue(list) {
+    var box = $('fr-photo');
+    if (!list.length) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    var total = list.length, done = 0, failed = [], queue = list.slice();
+    function step() {
+      if (!queue.length) {
+        if (failed.length) {
+          box.innerHTML = 'Chưa tải được ảnh: ' + esc(failed.map(function (j) { return j.ma; }).join(', ')) +
+                          '. <a href="#" id="fr-photo-retry">Thử lại</a>';
+          $('fr-photo-retry').onclick = function (ev) { ev.preventDefault(); uploadQueue(failed); };
+        } else {
+          box.textContent = '✓ Đã lưu ' + done + ' ảnh';
+        }
+        return;
+      }
+      var j = queue.shift();
+      box.textContent = 'Đang tải ảnh ' + (done + failed.length + 1) + '/' + total + '… (số đã được lưu)';
+      google.script.run
+        .withSuccessHandler(function (r) { if (r && r.status === 'OK') done++; else failed.push(j); step(); })
+        .withFailureHandler(function () { failed.push(j); step(); })
+        .uploadPhoto({pin: PIN, id: j.id, anh: j.data});
+    }
+    step();
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; });
+  }
+
+  function loadMeter(ma) {
+    show('v-loading');
+    google.script.run
+      .withSuccessHandler(onInfo)
+      .withFailureHandler(onFail)
+      .getMeterInfo(ma, PIN);
+  }
+
+  function onFail(e) {
+    $('err-msg').textContent = (e && e.message) ? e.message : String(e);
+    show('v-error');
+  }
+
+  function onInfo(r) {
+    if (!r.ok) {
+      if (r.auth) { clearPin(); PIN = ''; showLogin(r.msg); return; }
+      $('err-msg').textContent = r.msg;
+      show('v-error');
+      return;
+    }
+    info = r;
+    if (r.nhanVien) { USER = r.nhanVien; saveUser(USER); }
+    photoData = '';
+    $('thumb').style.display = 'none';
+    $('f-anh').value = '';
+    $('f-moi').value = '';
+    $('f-ghichu').value = '';
+    $('f-thay').checked = false;
+    $('f-thay-box').classList.add('hidden');
+    $('f-cuoi').value = '';
+    $('f-dau').value = '';
+    $('f-cutay').value = '';
+
+    $('f-ma').textContent = r.maCanHo;
+    $('f-sub').textContent = 'Tòa ' + r.toaNha + ' · Tầng ' + r.tang + ' · ' + r.maDongHo + ' · Tháng ' + r.thang;
+    $('f-user').textContent = r.nhanVien || USER;
+    $('f-anh-bb').textContent = r.batBuocAnh ? '(bắt buộc)' : '(khuyến khích)';
+
+    if (r.chiSoCu === null) {
+      $('f-cu-box').classList.add('hidden');
+      $('f-cutay-box').classList.remove('hidden');
+    } else {
+      $('f-cu-box').classList.remove('hidden');
+      $('f-cutay-box').classList.add('hidden');
+      $('f-cu').textContent = fmt(r.chiSoCu);
+      $('f-cu-nguon').textContent = '(' + (r.nguonCu === 'thang truoc' ? 'tháng trước' : 'chỉ số ban đầu') + ')';
+    }
+
+    var dg = $('f-daghi');
+    if (r.daGhi) {
+      dg.textContent = 'Đã ghi tháng này: chỉ số ' + r.daGhi.chiSoMoi + ' lúc ' + r.daGhi.ngay +
+                       ' (' + r.daGhi.nhanVien + '). Gửi lại sẽ hỏi ghi đè.';
+      dg.classList.remove('hidden');
+    } else {
+      dg.classList.add('hidden');
+    }
+    if (r.trangThai && String(r.trangThai).toLowerCase().indexOf('đang dùng') < 0) {
+      dg.textContent = 'Lưu ý: trạng thái đồng hồ là "' + r.trangThai + '". ' + (dg.textContent || '');
+      dg.classList.remove('hidden');
+    }
+    updatePreview();
+    show('v-form');
+    setTimeout(function () { $('f-moi').focus(); }, 100);
+  }
+
+  function toggleThay() {
+    $('f-thay-box').classList.toggle('hidden', !$('f-thay').checked);
+    updatePreview();
+  }
+
+  function num(id) {
+    var v = $(id).value;
+    return v === '' ? NaN : Number(v);
+  }
+
+  function updatePreview() {
+    var p = $('f-preview');
+    if (!info) return;
+    var moi = num('f-moi');
+    var cu = info.chiSoCu === null ? num('f-cutay') : info.chiSoCu;
+    if (isNaN(moi) || isNaN(cu)) { p.textContent = ''; return; }
+    var tt, detail = '';
+    if ($('f-thay').checked) {
+      var cuoi = num('f-cuoi'), dau = num('f-dau');
+      if (isNaN(cuoi) || isNaN(dau)) { p.textContent = 'Nhập CS đồng hồ cũ lúc thay và CS đồng hồ mới lúc lắp để tính.'; return; }
+      var phanCu = cuoi - cu, phanMoi = moi - dau;
+      tt = phanCu + phanMoi;
+      detail = 'Đồng hồ cũ: ' + fmt(cuoi) + ' − ' + fmt(cu) + ' = <b>' + fmt(phanCu) + ' m³</b><br>' +
+               'Đồng hồ mới: ' + fmt(moi) + ' − ' + fmt(dau) + ' = <b>' + fmt(phanMoi) + ' m³</b><br>' +
+               'Chỉ số cũ quy đổi: <b>' + fmt(dau - phanCu) + '</b> · chỉ số mới: <b>' + fmt(moi) + '</b><br>';
+    } else {
+      tt = moi - cu;
+    }
+    p.innerHTML = detail + 'Tiêu thụ ' + ($('f-thay').checked ? 'tháng' : 'dự kiến') + ': <b>' + fmt(tt) + ' m³</b>' +
+                  (tt < 0 ? ' — kiểm tra lại số' : '');
+  }
+
+  function onPhoto(input) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    compressImage(f, 1024, 0.65).then(function (data) {
+      photoData = data;
+      var t = $('thumb');
+      t.src = data;
+      t.style.display = 'block';
+    }).catch(function () {
+      alert('Không đọc được ảnh. Hãy thử chụp lại.');
+    });
+  }
+
+  function compressImage(file, maxSize, quality) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var s = Math.min(1, maxSize / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * s);
+          c.height = Math.round(img.height * s);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function submitForm(flags) {
+    if (!info) return;
+    var payload = {
+      pin: PIN,
+      ma: info.maCanHo,
+      chiSoMoi: $('f-moi').value,
+      chiSoCuTay: $('f-cutay').value,
+      thayDongHo: $('f-thay').checked,
+      csCuoiCu: $('f-cuoi').value,
+      csDauMoi: $('f-dau').value,
+      ghiChu: $('f-ghichu').value,
+      coAnh: !!photoData,
+      overwrite: !!flags.overwrite,
+      xacNhan: !!flags.xacNhan
+    };
+    if (payload.chiSoMoi === '') { alert('Hãy nhập chỉ số hiện tại.'); return; }
+    if (payload.thayDongHo && (payload.csCuoiCu === '' || payload.csDauMoi === '')) {
+      alert('Thay đồng hồ: hãy nhập CS đồng hồ cũ lúc thay và CS đồng hồ mới lúc lắp.');
+      return;
+    }
+    var btn = $('btn-send');
+    btn.disabled = true;
+    btn.textContent = 'Đang gửi…';
+    var pd = photoData;
+    google.script.run
+      .withSuccessHandler(function (res) { onSubmitted(res, flags, pd); })
+      .withFailureHandler(function (e) {
+        resetBtn();
+        alert('Lỗi: ' + ((e && e.message) ? e.message : e));
+      })
+      .submitReading(payload);
+  }
+
+  // Tai anh len ngam sau khi da luu so; thu lai toi 3 lan neu mang yeu
+  function sendPhoto(id, data, tries) {
+    var box = $('r-photo');
+    if (!data || !id) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    box.textContent = 'Đang tải ảnh lên… (số đã được lưu, có thể ghi căn khác)';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        if (r && r.status === 'OK') { box.textContent = '✓ Đã lưu ảnh'; return; }
+        if (r && r.status === 'AUTH') { box.textContent = 'Ảnh chưa lưu: PIN không còn hiệu lực.'; return; }
+        retry();
+      })
+      .withFailureHandler(retry)
+      .uploadPhoto({pin: PIN, id: id, anh: data});
+    function retry() {
+      if (tries < 2) { setTimeout(function () { sendPhoto(id, data, tries + 1); }, 2000); return; }
+      box.innerHTML = 'Chưa tải được ảnh. <a href="#" id="r-photo-retry">Thử lại</a>';
+      $('r-photo-retry').onclick = function (ev) { ev.preventDefault(); sendPhoto(id, data, 0); };
+    }
+  }
+
+  function resetBtn() {
+    var btn = $('btn-send');
+    btn.disabled = false;
+    btn.textContent = 'Gửi';
+  }
+
+  function onSubmitted(res, flags, pd) {
+    resetBtn();
+    if (res.status === 'OK') {
+      $('r-title').textContent = res.ghiDe ? 'Đã ghi đè' : 'Đã lưu';
+      var sub = res.maCanHo + ' · Tháng ' + res.thang;
+      if (res.thayDongHo) {
+        sub += ' · thay đồng hồ: cũ ' + fmt(res.phanCu) + ' m³ + mới ' + fmt(res.phanMoi) + ' m³';
+      }
+      $('r-sub').textContent = sub;
+      $('r-cu-lbl').textContent = res.thayDongHo ? 'Chỉ số cũ (quy đổi)' : 'Chỉ số cũ';
+      $('r-cu').textContent = fmt(res.chiSoCu);
+      $('r-moi').textContent = fmt(res.chiSoMoi);
+      $('r-tt').textContent = fmt(res.tieuThu) + ' m³';
+      $('r-tien').textContent = fmt(Math.round(res.thanhTien)) + ' đ';
+      show('v-result');
+      sendPhoto(res.id, pd, 0);
+    } else if (res.status === 'DUPLICATE') {
+      if (confirm(res.msg)) submitForm({overwrite: true, xacNhan: flags.xacNhan});
+    } else if (res.status === 'CONFIRM') {
+      if (confirm(res.msg)) submitForm({overwrite: flags.overwrite, xacNhan: true});
+    } else if (res.status === 'AUTH') {
+      clearPin();
+      PIN = '';
+      showLogin(res.msg);
+    } else {
+      alert(res.msg || 'Có lỗi xảy ra.');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

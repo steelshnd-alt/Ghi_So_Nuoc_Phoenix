@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; color: #1b2733; }
+  .bar { padding: 12px 16px; background: #f3f5f8; border-bottom: 1px solid #d9dfe6;
+         display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .bar select, .bar button { font-size: 15px; padding: 8px 12px; border-radius: 8px;
+                             border: 1px solid #c3ccd6; background: #fff; }
+  .bar button.primary { background: #0b6bcb; color: #fff; border-color: #0b6bcb; font-weight: 600; }
+  #info { color: #66727f; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px; }
+  .label { border: 1px dashed #9aa6b2; border-radius: 6px; padding: 8px 4px; text-align: center;
+           page-break-inside: avoid; break-inside: avoid; }
+  .label .qr { display: flex; justify-content: center; }
+  .label .ma { font-size: 18px; font-weight: 800; margin-top: 4px; }
+  .label .dh { font-size: 10px; color: #555; }
+  @media print {
+    .bar { display: none; }
+    @page { margin: 8mm; }
+    .grid { padding: 0; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <label>PIN <input type="password" id="pin" autocomplete="off"
+         style="width:110px;font-size:15px;padding:8px;border-radius:8px;border:1px solid #c3ccd6"></label>
+  <button onclick="loadList()">Tải danh sách</button>
+  <label>Tòa <select id="toa" onchange="fillTang()"></select></label>
+  <label>Tầng <select id="tang"></select></label>
+  <button class="primary" onclick="render()">Tạo nhãn căn hộ</button>
+  <button class="primary" onclick="renderFloors()">Tạo nhãn TẦNG</button>
+  <button onclick="window.print()">In / Lưu PDF</button>
+  <span id="info">Nhập PIN rồi bấm "Tải danh sách".</span>
+</div>
+<div class="bar" style="align-items:flex-start">
+  <label style="flex:1;min-width:260px">Hoặc dán danh sách mã căn hộ (mỗi dòng một mã, không cần PIN)<br>
+    <textarea id="custom" rows="3" placeholder="PC.0515&#10;PC.0516&#10;PA2401"
+      style="width:100%;box-sizing:border-box;font-size:15px;padding:8px;border-radius:8px;border:1px solid #c3ccd6"></textarea></label>
+  <button class="primary" onclick="renderCustom()">Tạo nhãn từ danh sách</button>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+  // ===== CAU HINH: dan link web app Apps Script (ket thuc bang /exec) vao day =====
+  var API_URL = 'https://script.google.com/macros/s/AKfycbxSmzUgf4PA1S6fx0T3TFihvz3W73_vqOM8eVVr4frCTRORv3VofhtlNWBJqnbaTwskkw/exec';
+
+  // Gia lap google.script.run de giu nguyen code giao dien: goi Apps Script qua fetch
+  var google = {script: {run: (function () {
+    function mk(ok, fail) {
+      return new Proxy({}, {get: function (_, name) {
+        if (name === 'withSuccessHandler') return function (f) { return mk(f, fail); };
+        if (name === 'withFailureHandler') return function (f) { return mk(ok, f); };
+        return function () {
+          var args = Array.prototype.slice.call(arguments);
+          fetch(API_URL, {method: 'POST',
+                          headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                          body: JSON.stringify({fn: String(name), args: args})})
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (j.error) throw new Error(j.error);
+              if (ok) ok(j.result);
+            })
+            .catch(function (e) { if (fail) fail(e); });
+        };
+      }});
+    }
+    return mk(null, null);
+  })()}};
+</script>
+<script>
+  var BASE = location.href.replace(/[^\/]*([?#].*)?$/, '') + 'index.html';
+  var DATA = [];
+
+  function $(id) { return document.getElementById(id); }
+
+  function loadList() {
+    var pin = $('pin').value.trim();
+    if (!pin) { $('info').textContent = 'Hãy nhập PIN.'; return; }
+    $('info').textContent = 'Đang tải danh sách…';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) { $('info').textContent = res.msg; return; }
+        try { localStorage.setItem('dp_pin', pin); } catch (e) {}
+        DATA = res.list;
+        var toas = unique(DATA.map(function (d) { return d.toaNha; }));
+        $('toa').innerHTML = '<option value="">Tất cả</option>' +
+          toas.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+        fillTang();
+        $('info').textContent = DATA.length + ' đồng hồ trong danh mục.';
+      })
+      .withFailureHandler(function (e) {
+        $('info').textContent = 'Lỗi: ' + ((e && e.message) ? e.message : e);
+      })
+      .getLabelData(pin);
+  }
+
+  function unique(a) {
+    var seen = {}, out = [];
+    a.forEach(function (x) { if (!seen[x]) { seen[x] = 1; out.push(x); } });
+    return out;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+    });
+  }
+
+  function fillTang() {
+    var toa = $('toa').value;
+    var tangs = unique(DATA.filter(function (d) { return !toa || d.toaNha === toa; })
+                           .map(function (d) { return d.tang; }));
+    $('tang').innerHTML = '<option value="">Tất cả</option>' +
+      tangs.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+  }
+
+  var RUN = 0;   // so lan chay, de huy lan dang chay khi bam lai
+
+  function render() {
+    var toa = $('toa').value, tang = $('tang').value;
+    var list = DATA.filter(function (d) {
+      return (!toa || d.toaNha === toa) && (!tang || d.tang === tang);
+    }).map(function (d) { return {ma: d.maCanHo, dh: d.maDongHo}; });
+    draw(list);
+  }
+
+  // Moi tang 1 ma QR (ma tang, vi du PA.01) - quet de mo ca tang
+  function renderFloors() {
+    var toa = $('toa').value, seen = {}, list = [];
+    DATA.forEach(function (d) {
+      if (toa && d.toaNha !== toa) return;
+      var k = d.toaNha + '|' + d.tang;
+      if (seen[k] || !d.tang) return;
+      seen[k] = 1;
+      list.push({ma: d.tang, dh: d.toaNha, param: 'tang'});
+    });
+    draw(list);
+  }
+
+  // Tao nhan cho danh sach ma nhap tay (moi dong mot ma, khong can PIN)
+  function renderCustom() {
+    var seen = {}, list = [];
+    $('custom').value.split(/[\s,;]+/).forEach(function (m) {
+      m = m.replace(/[^A-Za-z0-9_.\-]/g, '');
+      if (m && !seen[m.toUpperCase()]) { seen[m.toUpperCase()] = 1; list.push({ma: m, dh: ''}); }
+    });
+    if (!list.length) { $('info').textContent = 'Hãy dán danh sách mã căn hộ (mỗi dòng một mã).'; return; }
+    draw(list);
+  }
+
+  // Ve nhan theo tung dot 60 cai de trinh duyet khong bi dung hinh
+  function draw(list) {
+    var run = ++RUN, i = 0, total = list.length, grid = $('grid');
+    grid.innerHTML = '';
+    if (!total) { $('info').textContent = 'Không có đồng hồ nào để tạo nhãn.'; return; }
+    function step() {
+      if (run !== RUN) return;
+      var end = Math.min(i + 60, total);
+      for (; i < end; i++) {
+        var d = list[i];
+        var box = document.createElement('div');
+        box.className = 'label';
+        var qr = document.createElement('div');
+        qr.className = 'qr';
+        box.appendChild(qr);
+        var ma = document.createElement('div');
+        ma.className = 'ma';
+        ma.textContent = d.ma;
+        box.appendChild(ma);
+        if (d.dh) {
+          var dh = document.createElement('div');
+          dh.className = 'dh';
+          dh.textContent = d.dh;
+          box.appendChild(dh);
+        }
+        grid.appendChild(box);
+        new QRCode(qr, {text: BASE + '?' + (d.param || 'ma') + '=' + encodeURIComponent(d.ma), width: 110, height: 110});
+      }
+      if (i < total) {
+        $('info').textContent = 'Đang tạo nhãn ' + i + '/' + total + '…';
+        setTimeout(step, 0);
+      } else {
+        $('info').textContent = 'Đã tạo ' + total + ' nhãn. Bấm "In / Lưu PDF".';
+      }
+    }
+    step();
+  }
+
+  // Tu dong tai danh sach neu dien thoai/may da luu PIN
+  try {
+    var saved = localStorage.getItem('dp_pin');
+    if (saved) { $('pin').value = saved; loadList(); }
+  } catch (e) {}
+</script>
+</body>
+</html>
