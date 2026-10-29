@@ -637,7 +637,7 @@
     var meta = document.createElement('div');
     meta.className = 'meta';
     var m = a.chiSoCu === null ? 'Chưa có CS cũ' : 'CS cũ: ' + fmt(a.chiSoCu);
-    if (a.daGhi) m += ' · đã ghi: ' + fmt(a.daGhi.chiSoMoi) + (a.daGhi.nhanVien ? ' (' + a.daGhi.nhanVien + ')' : '');
+    if (a.daGhi) m += ' · đã ghi: ' + fmt(a.daGhi.chiSoMoi) + (a.daGhi.ngay ? ' lúc ' + a.daGhi.ngay : '') + (a.daGhi.nhanVien ? ' (' + a.daGhi.nhanVien + ')' : '');
     meta.textContent = m;
     left.appendChild(code);
     left.appendChild(meta);
