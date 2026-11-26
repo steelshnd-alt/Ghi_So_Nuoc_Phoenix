@@ -12,7 +12,7 @@
                              border: 1px solid #c3ccd6; background: #fff; }
   .bar button.primary { background: #0b6bcb; color: #fff; border-color: #0b6bcb; font-weight: 600; }
   #info { color: #66727f; font-size: 14px; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 12px; }
   .label { border: 1px dashed #9aa6b2; border-radius: 6px; padding: 8px 4px; text-align: center;
            page-break-inside: avoid; break-inside: avoid; }
   .label .qr { display: flex; justify-content: center; }
@@ -178,7 +178,7 @@
           box.appendChild(dh);
         }
         grid.appendChild(box);
-        new QRCode(qr, {text: BASE + '?' + (d.param || 'ma') + '=' + encodeURIComponent(d.ma), width: 110, height: 110});
+        new QRCode(qr, {text: BASE + '?' + (d.param || 'ma') + '=' + encodeURIComponent(d.ma), width: 220, height: 220});
       }
       if (i < total) {
         $('info').textContent = 'Đang tạo nhãn ' + i + '/' + total + '…';
