@@ -178,7 +178,7 @@
           box.appendChild(dh);
         }
         grid.appendChild(box);
-        new QRCode(qr, {text: BASE + '?' + (d.param || 'ma') + '=' + encodeURIComponent(d.ma), width: 550, height: 550});
+        new QRCode(qr, {text: BASE + '?' + (d.param || 'ma') + '=' + encodeURIComponent(d.ma), width: 450, height: 450});
       }
       if (i < total) {
         $('info').textContent = 'Đang tạo nhãn ' + i + '/' + total + '…';
